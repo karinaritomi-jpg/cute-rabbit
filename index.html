@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>うさぎさんと一緒♪ - ふわふわ育成ゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'DotGothic16', monospace;
+            user-select: none;
+            overflow: hidden;
+            background-color: #111827;
+            image-rendering: pixelated;
+        }
+
+        /* リアルなLINE画面用フォント設定 */
+        .font-real-sans {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            letter-spacing: normal !important;
+        }
+
+        /* 16bit レトロテーマ (パステル・ドット) */
+        .theme-pastel {
+            background-color: #fce7f3;
+            background-image: 
+                radial-gradient(#fbcfe8 15%, transparent 16%),
+                radial-gradient(#fbcfe8 15%, transparent 16%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            color: #472f3d;
+        }
+
+        /* リアルなLINE・ダークテーマ */
+        .theme-dark {
+            background-color: #111721;
+            color: #ffffff;
+            image-rendering: auto !important;
+        }
+
+        /* ピクセル枠線とレトロボタン */
+        .pixel-box {
+            border: 4px solid #472f3d;
+            box-shadow: 4px 4px 0px #472f3d;
+            background-color: #ffffff;
+        }
+
+        .pixel-btn {
+            background-color: #f472b6;
+            border: 4px solid #472f3d;
+            box-shadow: 0px 4px 0px #472f3d;
+            color: #ffffff;
+            transition: transform 0.05s, box-shadow 0.05s;
+        }
+        .pixel-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0px 0px 0px #472f3d;
+        }
+
+        .pixel-btn-secondary {
+            background-color: #9ca3af;
+            border: 4px solid #472f3d;
+            box-shadow: 0px 4px 0px #472f3d;
+            color: #ffffff;
+        }
+        .pixel-btn-secondary:active {
+            transform: translateY(4px);
+            box-shadow: 0px 0px 0px #472f3d;
+        }
+
+        .pixel-btn-danger {
+            background-color: #dc2626;
+            border: 4px solid #472f3d;
+            box-shadow: 0px 4px 0px #472f3d;
+            color: #ffffff;
+        }
+        .pixel-btn-danger:active {
+            transform: translateY(4px);
+            box-shadow: 0px 0px 0px #472f3d;
+        }
+
+        /* うさぎのアニメーション */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        @keyframes mofumofu {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08) rotate(-2deg); }
+            100% { transform: scale(1); }
+        }
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-4px, 4px) }
+            40% { transform: translate(-4px, -4px) }
+            60% { transform: translate(4px, 4px) }
+            80% { transform: translate(4px, -4px) }
+            100% { transform: translate(0) }
+        }
+
+        .anim-float { animation: float 1.5s steps(4) infinite; }
+        .anim-mofumofu { animation: mofumofu 0.3s steps(3); }
+        .glitch-effect { animation: glitch 0.15s infinite; filter: contrast(250%) hue-rotate(90deg); }
+
+        /* LINE吹き出しアニメーション */
+        .chat-bubble {
+            opacity: 0;
+            transform: translateY(8px);
+            animation: bubblePop 0.25s ease-out forwards;
+        }
+
+        /* 最後のメッセージ用ドロップシャドウ・赤文字強調アニメーション */
+        .scary-final-msg {
+            animation: bubblePop 0.25s ease-out forwards;
+        }
+
+        @keyframes bubblePop {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* スクロールバー非表示 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center p-2 sm:p-4">
+
+    <!-- メインゲームコンテナ -->
+    <div id="game-container" class="relative w-full max-w-md h-[100dvh] max-h-[850px] theme-pastel border-8 border-[#472f3d] shadow-2xl overflow-hidden flex flex-col transition-all duration-500">
+
+        <!-- 暗転用オーバーレイ -->
+        <div id="overlay-screen" class="absolute inset-0 bg-black z-50 opacity-0 pointer-events-none transition-opacity duration-1000 flex flex-col items-center justify-center p-6 text-center">
+            <p id="overlay-text" class="text-red-600 font-bold text-xl tracking-widest hidden mb-6"></p>
+            <button id="restart-btn" onclick="restartGame()" class="hidden pixel-btn text-white font-bold py-2 px-6 text-sm">
+                もう一度プレイ
+            </button>
+        </div>
+
+        <!-- 一夜明ける（おやすみ）用の黒画面オーバーレイ -->
+        <div id="sleep-overlay" class="absolute inset-0 bg-black z-50 opacity-0 pointer-events-none transition-opacity duration-700 flex flex-col items-center justify-center text-white text-center p-6">
+            <div class="text-4xl mb-4 animate-pulse">🌙</div>
+            <p id="sleep-overlay-text" class="text-base sm:text-lg font-bold tracking-widest leading-relaxed">すやすや...<br>（あさになりました）</p>
+        </div>
+
+        <!-- ==================== 序章：出会いストーリー画面 ==================== -->
+        <div id="intro-scene" class="absolute inset-0 z-40 theme-pastel p-6 flex flex-col justify-between items-center text-center">
+            <div class="mt-4">
+                <h1 class="text-2xl font-bold text-pink-600 mb-1 tracking-wider">ひろったうさぎ</h1>
+                <p class="text-xs text-pink-500">〜 ある日の帰り道 〜</p>
+            </div>
+
+            <!-- 16bitドット絵風うさぎSVG -->
+            <div class="relative my-auto">
+                <div id="intro-rabbit-svg" class="w-48 h-48 mx-auto anim-float">
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <!-- 耳 -->
+                        <rect x="30" y="10" width="12" height="30" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                        <rect x="34" y="14" width="4" height="20" fill="#f472b6"/>
+                        <rect x="58" y="10" width="12" height="30" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                        <rect x="62" y="14" width="4" height="20" fill="#f472b6"/>
+                        <!-- 体 -->
+                        <rect x="25" y="60" width="50" height="30" rx="4" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                        <!-- 頭 -->
+                        <rect x="20" y="32" width="60" height="36" rx="4" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                        <!-- 目 -->
+                        <rect x="32" y="46" width="6" height="8" fill="#472f3d"/>
+                        <rect x="34" y="48" width="2" height="2" fill="#ffffff"/>
+                        <rect x="62" y="46" width="6" height="8" fill="#472f3d"/>
+                        <rect x="64" y="48" width="2" height="2" fill="#ffffff"/>
+                        <!-- ほっぺ -->
+                        <rect x="26" y="54" width="8" height="4" fill="#f472b6" opacity="0.7"/>
+                        <rect x="66" y="54" width="8" height="4" fill="#f472b6" opacity="0.7"/>
+                        <!-- 鼻・口 -->
+                        <rect x="48" y="52" width="4" height="4" fill="#f472b6"/>
+                        <rect x="44" y="56" width="12" height="2" fill="#472f3d"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="w-full pixel-box rounded-none p-4 mb-2">
+                <p id="intro-dialogue" class="text-xs sm:text-sm text-gray-800 leading-relaxed font-bold min-h-[4rem] flex items-center justify-center">
+                    みちばたで ちいさなうさぎを ひろった。<br>ダンボールのなかで ふるえている...
+                </p>
+            </div>
+
+            <button id="intro-next-btn" onclick="nextIntroStep()" class="w-full pixel-btn text-white font-bold py-3 text-base">
+                つぎへ ＞
+            </button>
+        </div>
+
+        <!-- ==================== メイン育成画面 ==================== -->
+        <header id="game-header" class="p-3 flex justify-between items-center bg-white border-b-4 border-[#472f3d]">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">🐰</span>
+                <div>
+                    <h2 id="rabbit-name-display" class="font-bold text-pink-600 text-xs sm:text-sm">うさぎ</h2>
+                    <p class="text-[10px] text-pink-500">なかよし: <span id="love-level">★☆☆☆☆</span></p>
+                </div>
+            </div>
+            <div id="day-counter" class="bg-pink-200 text-pink-700 px-3 py-1 border-2 border-[#472f3d] text-xs font-bold">
+                1にちめ
+            </div>
+        </header>
+
+        <!-- ウサギ表示エリア -->
+        <main class="flex-1 flex flex-col items-center justify-center p-3 relative">
+            <div id="speech-bubble" class="absolute top-2 w-11/12 pixel-box p-3 text-center transition-all duration-300">
+                <p id="speech-text" class="text-xs sm:text-sm font-bold text-gray-800 leading-relaxed">
+                    つれてかえってくれて ありがとう！<br>これから よろしくね、ごしゅじんさま♪
+                </p>
+            </div>
+
+            <div id="rabbit-avatar" class="w-48 h-48 relative my-auto cursor-pointer transition-transform" onclick="doAction('mofumofu')">
+                <svg id="rabbit-svg" viewBox="0 0 100 100" class="w-full h-full anim-float">
+                    <!-- 耳 -->
+                    <rect x="30" y="10" width="12" height="30" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                    <rect x="34" y="14" width="4" height="20" fill="#f472b6"/>
+                    <rect x="58" y="10" width="12" height="30" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                    <rect x="62" y="14" width="4" height="20" fill="#f472b6"/>
+                    <!-- 体 -->
+                    <rect x="25" y="60" width="50" height="30" rx="4" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                    <rect x="20" y="70" width="10" height="15" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                    <rect x="70" y="70" width="10" height="15" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                    <!-- 頭 -->
+                    <rect x="20" y="32" width="60" height="36" rx="4" fill="#ffffff" stroke="#472f3d" stroke-width="2"/>
+                    
+                    <!-- 目（ノーマル） -->
+                    <g id="eyes-normal">
+                        <rect x="32" y="46" width="6" height="8" fill="#472f3d"/>
+                        <rect x="34" y="48" width="2" height="2" fill="#ffffff"/>
+                        <rect x="62" y="46" width="6" height="8" fill="#472f3d"/>
+                        <rect x="64" y="48" width="2" height="2" fill="#ffffff"/>
+                    </g>
+                    <!-- 目（にっこり） -->
+                    <g id="eyes-happy" class="hidden">
+                        <rect x="30" y="48" width="10" height="2" fill="#472f3d"/>
+                        <rect x="30" y="46" width="2" height="2" fill="#472f3d"/>
+                        <rect x="38" y="46" width="2" height="2" fill="#472f3d"/>
+                        <rect x="60" y="48" width="10" height="2" fill="#472f3d"/>
+                        <rect x="60" y="46" width="2" height="2" fill="#472f3d"/>
+                        <rect x="68" y="46" width="2" height="2" fill="#472f3d"/>
+                    </g>
+                    <!-- 目（ホラー） -->
+                    <g id="eyes-scary" class="hidden">
+                        <rect x="30" y="44" width="10" height="12" fill="#000000"/>
+                        <rect x="34" y="48" width="2" height="4" fill="#dc2626"/>
+                        <rect x="60" y="44" width="10" height="12" fill="#000000"/>
+                        <rect x="64" y="48" width="2" height="4" fill="#dc2626"/>
+                    </g>
+
+                    <rect id="cheeks" x="26" y="54" width="8" height="4" fill="#f472b6" opacity="0.7"/>
+                    <rect x="66" y="54" width="8" height="4" fill="#f472b6" opacity="0.7"/>
+                    <rect x="48" y="52" width="4" height="4" fill="#f472b6"/>
+                    <rect id="mouth" x="44" y="56" width="12" height="2" fill="#472f3d"/>
+                </svg>
+            </div>
+
+            <div id="action-effect" class="absolute inset-0 pointer-events-none flex items-center justify-center text-4xl opacity-0 transition-all duration-300">
+                ✨
+            </div>
+
+            <div id="interactive-panel" class="w-full hidden flex-col gap-2 mt-2 z-10">
+            </div>
+        </main>
+
+        <!-- アクションボタンエリア -->
+        <footer id="action-buttons" class="p-3 bg-white border-t-4 border-[#472f3d] grid grid-cols-3 gap-2">
+            <button onclick="doAction('feed')" class="pixel-btn text-xs font-bold py-2 px-1 flex flex-col items-center justify-center gap-1">
+                <span class="text-sm">🥕</span>
+                <span>エサをやる</span>
+            </button>
+            <button onclick="doAction('talk')" class="pixel-btn text-xs font-bold py-2 px-1 flex flex-col items-center justify-center gap-1">
+                <span class="text-sm">💬</span>
+                <span>おはなし</span>
+            </button>
+            <button onclick="doAction('walk')" class="pixel-btn text-xs font-bold py-2 px-1 flex flex-col items-center justify-center gap-1">
+                <span class="text-sm">🌸</span>
+                <span>さんぽ</span>
+            </button>
+            <button onclick="doAction('sleep')" class="pixel-btn text-xs font-bold py-2 px-1 flex flex-col items-center justify-center gap-1 col-span-1">
+                <span class="text-sm">🌙</span>
+                <span>おやすみ</span>
+            </button>
+            <button onclick="doAction('mofumofu')" class="pixel-btn text-xs font-bold py-2 px-1 flex flex-col items-center justify-center gap-1 col-span-2">
+                <span class="text-sm">✨</span>
+                <span>もふもふする</span>
+            </button>
+        </footer>
+
+        <!-- ==================== LINE画面 (ホラーパート) ==================== -->
+        <div id="line-scene" class="absolute inset-0 z-30 theme-dark font-real-sans flex flex-col hidden">
+            <!-- リアルなLINEヘッダー -->
+            <div class="bg-[#1e2329] text-white px-4 py-3 flex items-center justify-between border-b border-[#2a3038] shadow-md">
+                <div class="flex items-center gap-3">
+                    <span class="text-lg text-gray-300 font-light cursor-pointer">‹</span>
+                    <div class="w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold text-white overflow-hidden shadow-inner">
+                        <span>🐰</span>
+                    </div>
+                    <div>
+                        <p id="line-sender-name" class="font-semibold text-sm tracking-wide transition-colors duration-500">未知の相手</p>
+                    </div>
+                </div>
+                <div class="text-gray-300 flex items-center gap-4 text-sm">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                </div>
+            </div>
+
+            <!-- チャット表示エリア -->
+            <div id="line-chat-box" class="flex-1 p-4 overflow-y-auto space-y-3 no-scrollbar flex flex-col bg-[#111721]">
+            </div>
+
+            <!-- LINE選択肢/入力欄エリア -->
+            <div id="line-interactive-area" class="bg-[#1e2329] p-3 border-t border-[#2a3038] flex flex-col gap-2">
+                <div id="line-choice-buttons" class="hidden justify-center gap-3 py-1">
+                    <button onclick="chooseEnding2Option(true)" class="bg-pink-600 hover:bg-pink-700 text-white font-bold text-xs px-4 py-2 rounded-full transition-colors">私も好きだよ</button>
+                    <button onclick="chooseEnding2Option(false)" class="bg-gray-700 hover:bg-gray-600 text-white font-bold text-xs px-4 py-2 rounded-full transition-colors">やめて</button>
+                </div>
+                <div id="line-dummy-input" class="flex items-center gap-3 opacity-60">
+                    <span class="text-gray-400 text-xl font-light">+</span>
+                    <span class="text-gray-400 text-lg">📷</span>
+                    <span class="text-gray-400 text-lg">🖼️</span>
+                    <div class="flex-1 bg-[#2a3038] rounded-full px-4 py-1.5 text-xs text-gray-500 font-normal">
+                        メッセージを入力
+                    </div>
+                    <span class="text-gray-400 text-lg">😊</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let isEnding1Unlocked = false;
+
+        let gameState = {
+            day: 1,
+            favoriteFood: "",
+            playerName: "",
+            playerAddress: "",
+            knowsName: false,
+            questionStep: 0,
+            introStep: 0,
+            isSleepyReady: false,
+            nextTargetDay: 2
+        };
+
+        const introDialogues = [
+            "みちばたで ちいさなうさぎを ひろった。<br>ダンボールのなかで ふるえている...",
+            "「あの…つれてかえってくれませんか…？」",
+            "<span class='text-pink-600 font-bold'>！？ うさぎが にんげんのことばを しゃべった！</span>",
+            "いくばしょが ないみたいだ。<br>かわいそうだし、いえへ つれてかえろう。"
+        ];
+
+        function nextIntroStep() {
+            gameState.introStep++;
+            const textEl = document.getElementById("intro-dialogue");
+            
+            if (gameState.introStep < introDialogues.length) {
+                textEl.innerHTML = introDialogues[gameState.introStep];
+            } else {
+                textEl.innerHTML = "うさぎに なまえを つけてあげよう！";
+                const btn = document.getElementById("intro-next-btn");
+                btn.style.display = "none";
+
+                const container = document.getElementById("intro-scene");
+                const inputDiv = document.createElement("div");
+                inputDiv.id = "name-input-container";
+                inputDiv.className = "w-full space-y-3 mb-2";
+                inputDiv.innerHTML = `
+                    <input type="text" id="rabbit-name-input" placeholder="うさぎのなまえ" 
+                        class="w-full p-2 border-4 border-[#472f3d] text-center font-bold text-xs sm:text-sm focus:outline-none" value="うさちゃん">
+                    <button onclick="finishIntro()" class="pixel-btn text-white font-bold py-2 text-sm">
+                        きめた！
+                    </button>
+                `;
+                container.appendChild(inputDiv);
+            }
+        }
+
+        function finishIntro() {
+            const nameInput = document.getElementById("rabbit-name-input").value.trim();
+            const rabbitName = nameInput || "うさちゃん";
+            document.getElementById("rabbit-name-display").innerText = rabbitName;
+            
+            const introScene = document.getElementById("intro-scene");
+            introScene.classList.add("opacity-0", "transition-opacity", "duration-500");
+            setTimeout(() => {
+                introScene.style.display = "none";
+            }, 500);
+        }
+
+        function doAction(actionType) {
+            const speech = document.getElementById("speech-text");
+            const avatar = document.getElementById("rabbit-avatar");
+            
+            avatar.classList.add("anim-mofumofu");
+            setTimeout(() => avatar.classList.remove("anim-mofumofu"), 300);
+
+            setRabbitExpression("happy");
+
+            if (actionType === 'feed') {
+                showEffect("🥕");
+                if (gameState.questionStep === 0) {
+                    triggerQuestion1();
+                    return;
+                } else {
+                    speech.innerHTML = "もぐもぐ...とってもおいしいよ！<br>ごしゅじんさま ありがとう♪";
+                }
+            } 
+            else if (actionType === 'talk') {
+                showEffect("💬");
+                if (gameState.day >= 2 && gameState.questionStep === 1) {
+                    triggerQuestion2();
+                    return;
+                } else {
+                    speech.innerHTML = "ごしゅじんさまと おはなしするの、だいすき！<br>ずっと いっしょにいようね♪";
+                }
+            } 
+            else if (actionType === 'walk') {
+                showEffect("🌸");
+                if (gameState.day >= 3 && gameState.questionStep === 2) {
+                    triggerQuestion3();
+                    return;
+                } else {
+                    speech.innerHTML = "おそとの かぜが きもちいいね〜！<br>てをつないで おさんぽしたいな！";
+                }
+            } 
+            else if (actionType === 'sleep') {
+                showEffect("🌙");
+                if (gameState.isSleepyReady) {
+                    executeNightTransition();
+                    return;
+                }
+                speech.innerHTML = "すやすや...💤<br>（うさぎは きもちよさそうに ねむっている）";
+                setRabbitExpression("happy");
+            } 
+            else if (actionType === 'mofumofu') {
+                showEffect("✨");
+                if (gameState.day >= 4 && gameState.questionStep === 3) {
+                    triggerQuestion4();
+                    return;
+                } else {
+                    speech.innerHTML = "なでなで きもちいい〜！<br>もっと もふもふして〜！";
+                }
+            }
+        }
+
+        function showEffect(emoji) {
+            const effect = document.getElementById("action-effect");
+            effect.innerText = emoji;
+            effect.classList.remove("opacity-0", "scale-50");
+            effect.classList.add("opacity-100", "scale-125");
+            setTimeout(() => {
+                effect.classList.remove("opacity-100", "scale-125");
+                effect.classList.add("opacity-0", "scale-50");
+            }, 400);
+        }
+
+        function setRabbitExpression(type) {
+            document.getElementById("eyes-normal").classList.add("hidden");
+            document.getElementById("eyes-happy").classList.add("hidden");
+            document.getElementById("eyes-scary").classList.add("hidden");
+
+            if (type === "normal") document.getElementById("eyes-normal").classList.remove("hidden");
+            if (type === "happy") document.getElementById("eyes-happy").classList.remove("hidden");
+            if (type === "scary") document.getElementById("eyes-scary").classList.remove("hidden");
+        }
+
+        function hideActionButtons(hide) {
+            const btnArea = document.getElementById("action-buttons");
+            if (hide) {
+                btnArea.classList.add("pointer-events-none", "opacity-40");
+            } else {
+                btnArea.classList.remove("pointer-events-none", "opacity-40");
+            }
+        }
+
+        /* --- 質問1 (好きな食べ物) --- */
+        function triggerQuestion1() {
+            hideActionButtons(true);
+            const speech = document.getElementById("speech-text");
+            speech.innerHTML = "ごしゅじんさま！<br>すきな たべものは なんですか！";
+
+            const panel = document.getElementById("interactive-panel");
+            panel.innerHTML = `
+                <div class="pixel-box p-2 flex gap-2">
+                    <input type="text" id="food-input" placeholder="れい：オムライス" class="flex-1 px-2 py-1 text-xs border-2 border-[#472f3d] focus:outline-none">
+                    <button onclick="submitFood()" class="pixel-btn text-xs px-3 py-1 font-bold">おしえる</button>
+                </div>
+            `;
+            panel.classList.remove("hidden");
+            panel.classList.add("flex");
+        }
+
+        function submitFood() {
+            const input = document.getElementById("food-input").value.trim();
+            gameState.favoriteFood = input || "オムライス";
+            gameState.questionStep = 1;
+
+            document.getElementById("interactive-panel").classList.add("hidden");
+            document.getElementById("interactive-panel").classList.remove("flex");
+
+            const speech = document.getElementById("speech-text");
+            speech.innerHTML = `${gameState.favoriteFood} がすきなんだね！<br>あぁ...なんだか ねむくなっちゃった...💤`;
+            
+            gameState.isSleepyReady = true;
+            gameState.nextTargetDay = 2;
+            highlightSleepButton(true);
+        }
+
+        /* おやすみボタンの強調表示 */
+        function highlightSleepButton(enable) {
+            const sleepBtn = document.querySelector("button[onclick=\"doAction('sleep')\"]");
+            if (!sleepBtn) return;
+            if (enable) {
+                sleepBtn.classList.add("animate-bounce", "ring-4", "ring-yellow-300");
+                hideActionButtons(false);
+            } else {
+                sleepBtn.classList.remove("animate-bounce", "ring-4", "ring-yellow-300");
+            }
+        }
+
+        /* 一夜明ける演出（暗転アニメーション） */
+        function executeNightTransition() {
+            gameState.isSleepyReady = false;
+            highlightSleepButton(false);
+            hideActionButtons(true);
+
+            const sleepOverlay = document.getElementById("sleep-overlay");
+            const sleepText = document.getElementById("sleep-overlay-text");
+            
+            sleepText.innerHTML = "すやすや...💤<br><br><span class='text-sm text-pink-300'>〜 よるが あけました 〜</span>";
+            
+            sleepOverlay.classList.remove("opacity-0", "pointer-events-none");
+            sleepOverlay.classList.add("opacity-100");
+
+            setTimeout(() => {
+                advanceDay(gameState.nextTargetDay);
+                
+                setTimeout(() => {
+                    sleepOverlay.classList.remove("opacity-100");
+                    sleepOverlay.classList.add("opacity-0", "pointer-events-none");
+                    
+                    const speech = document.getElementById("speech-text");
+                    speech.innerHTML = `おはよう ごしゅじんさま！<br>きょうも いっしょに あそぼうね♪`;
+                    setRabbitExpression("happy");
+                    hideActionButtons(false);
+                }, 1000);
+            }, 1800);
+        }
+
+        function advanceDay(newDay) {
+            gameState.day = newDay;
+            const dayEl = document.getElementById("day-counter");
+            const loveEl = document.getElementById("love-level");
+            
+            dayEl.innerText = `${newDay}にちめ`;
+            if (newDay === 2) loveEl.innerText = "★★☆☆☆";
+            if (newDay === 3) loveEl.innerText = "★★★☆☆";
+            if (newDay === 4) loveEl.innerText = "★★★★☆";
+        }
+
+        /* --- 質問2 (どうしてそんなにかわいいの) --- */
+        function triggerQuestion2() {
+            hideActionButtons(true);
+            const speech = document.getElementById("speech-text");
+            speech.innerHTML = "ごしゅじんさま！<br>どうして そんなに かわいいんですか！";
+
+            setTimeout(() => {
+                speech.innerHTML = "えへへ、照れないで！<br>あ...ふぁぁ...急にすごくねむいな...💤";
+                gameState.questionStep = 2;
+                
+                gameState.isSleepyReady = true;
+                gameState.nextTargetDay = 3;
+                highlightSleepButton(true);
+            }, 2000);
+        }
+
+        /* --- 質問3 (本名を知りたい) --- */
+        function triggerQuestion3() {
+            hideActionButtons(true);
+            const speech = document.getElementById("speech-text");
+            speech.innerHTML = "ごしゅじんさま！ぼく、そろそろ<br>”ほんみょう”が しりたいです！";
+
+            const panel = document.getElementById("interactive-panel");
+            panel.innerHTML = `
+                <div class="flex justify-center gap-3 mt-1">
+                    <button onclick="chooseNameOption(true)" class="pixel-btn text-xs font-bold py-2 px-4">おしえる</button>
+                    <button onclick="chooseNameOption(false)" class="pixel-btn-secondary text-xs font-bold py-2 px-4">おしえない</button>
+                </div>
+            `;
+            panel.classList.remove("hidden");
+            panel.classList.add("flex");
+        }
+
+        function chooseNameOption(teach) {
+            const panel = document.getElementById("interactive-panel");
+            const speech = document.getElementById("speech-text");
+
+            if (teach) {
+                panel.innerHTML = `
+                    <div class="pixel-box p-2 flex gap-2">
+                        <input type="text" id="name-input" placeholder="あなたのほんみょう" class="flex-1 px-2 py-1 text-xs border-2 border-[#472f3d] focus:outline-none">
+                        <button onclick="submitName()" class="pixel-btn text-xs px-3 py-1 font-bold">そうしん</button>
+                    </div>
+                `;
+            } else {
+                panel.classList.add("hidden");
+                panel.classList.remove("flex");
+
+                setRabbitExpression("scary");
+                speech.innerText = "……チッ。";
+                
+                const avatar = document.getElementById("rabbit-avatar");
+                avatar.classList.add("glitch-effect");
+
+                setTimeout(() => {
+                    avatar.classList.remove("glitch-effect");
+                    setRabbitExpression("happy");
+                    speech.innerHTML = "あ、ううん！なんでもないよ♪<br>うぅ...なんだか急に まぶたが重いな...💤";
+                    gameState.questionStep = 3;
+                    
+                    gameState.isSleepyReady = true;
+                    gameState.nextTargetDay = 4;
+                    highlightSleepButton(true);
+                }, 1200);
+            }
+        }
+
+        function submitName() {
+            const input = document.getElementById("name-input").value.trim();
+            gameState.playerName = input || "ごしゅじん";
+            gameState.knowsName = true;
+            gameState.questionStep = 3;
+
+            document.getElementById("interactive-panel").classList.add("hidden");
+            document.getElementById("interactive-panel").classList.remove("flex");
+
+            const speech = document.getElementById("speech-text");
+            speech.innerHTML = `${gameState.playerName}さま！ありがとう♪<br>ふぁぁ...なんだか すごく ねむくなってきちゃった...💤`;
+
+            gameState.isSleepyReady = true;
+            gameState.nextTargetDay = 4;
+            highlightSleepButton(true);
+        }
+
+        /* --- 質問4 (住所要求 ＆ 「教える」「教える」選択肢) --- */
+        function triggerQuestion4() {
+            hideActionButtons(true);
+            const speech = document.getElementById("speech-text");
+            
+            const honorific = gameState.knowsName ? `${gameState.playerName}さま！` : "ごしゅじんさま！";
+            speech.innerText = `${honorific}`;
+
+            setTimeout(() => {
+                setRabbitExpression("happy");
+                
+                speech.innerText = "あ な た の 住 所 は ど こ で す か ？";
+
+                const panel = document.getElementById("interactive-panel");
+                panel.innerHTML = `
+                    <div class="flex justify-center gap-3 mt-1">
+                        <button onclick="showAddressInput()" class="pixel-btn text-xs font-bold py-2 px-5">おしえる</button>
+                        <button onclick="showAddressInput()" class="pixel-btn text-xs font-bold py-2 px-5">おしえる</button>
+                    </div>
+                `;
+                panel.classList.remove("hidden");
+                panel.classList.add("flex");
+            }, 1500);
+        }
+
+        function showAddressInput(errorMessage = "") {
+            const panel = document.getElementById("interactive-panel");
+            panel.innerHTML = `
+                <div class="flex flex-col gap-1 w-full">
+                    ${errorMessage ? `<p id="address-error" class="text-red-600 font-bold text-[11px] text-center animate-bounce">${errorMessage}</p>` : ''}
+                    <div class="pixel-box p-2 flex gap-2">
+                        <input type="text" id="address-input" placeholder="じゅうしょを にゅうりょく" class="flex-1 px-2 py-1 text-xs border-2 border-[#472f3d] font-bold focus:outline-none">
+                        <button onclick="submitAddress()" class="pixel-btn text-xs px-3 py-1 font-bold">そうしん</button>
+                    </div>
+                </div>
+            `;
+            setTimeout(() => {
+                const inputEl = document.getElementById("address-input");
+                if (inputEl) inputEl.focus();
+            }, 50);
+        }
+
+        /* --- 住所バリデーション関数 --- */
+        function isValidAddress(text) {
+            if (!text) return false;
+
+            const normalized = text.trim().toLowerCase()
+                .replace(/[ー〜〜～-]/g, '')
+                .replace(/[\!\?！？\s]/g, '');
+
+            const invalidKeywords = [
+                "教え", "おしえ", "おしへ",
+                "秘密", "ひみつ",
+                "いや", "イヤ", "ヤダ", "やだ",
+                "言わない", "いわない", "言わん", "いわん",
+                "むり", "無理", "ダメ", "だめ", "無茶",
+                "しらん", "知らん", "しらない", "知らない",
+                "不明", "なし", "どこでもいい", "どこか",
+                "内緒", "ないしょ", "ナイショ",
+                "答えない", "こたえない", "言えん", "いえん"
+            ];
+
+            for (const word of invalidKeywords) {
+                if (normalized.includes(word)) {
+                    return false;
+                }
+            }
+
+            if (normalized.length < 2) return false;
+
+            const isAllSameChar = /^((.)\2+)$/.test(normalized);
+            if (isAllSameChar) return false;
+
+            return true;
+        }
+
+        /* --- 回答された瞬間に一気にホラー表情＆暗転 --- */
+        function submitAddress() {
+            const inputEl = document.getElementById("address-input");
+            const rawInput = inputEl ? inputEl.value.trim() : "";
+
+            if (!isValidAddress(rawInput)) {
+                const speech = document.getElementById("speech-text");
+                speech.innerText = "ち ゃ ん と 答 え て ！";
+                
+                setRabbitExpression("happy");
+                showAddressInput("※正しい住所を入力してください");
+                return;
+            }
+
+            gameState.playerAddress = rawInput;
+
+            document.getElementById("interactive-panel").classList.add("hidden");
+            document.getElementById("interactive-panel").classList.remove("flex");
+
+            setRabbitExpression("scary");
+            document.getElementById("cheeks").setAttribute("fill", "#660000");
+
+            const speech = document.getElementById("speech-text");
+            speech.classList.add("text-red-600", "font-black");
+            speech.innerText = "あ りが と う ...";
+
+            const container = document.getElementById("game-container");
+            container.classList.add("glitch-effect");
+
+            setTimeout(() => {
+                const overlay = document.getElementById("overlay-screen");
+                overlay.classList.remove("opacity-0");
+                overlay.classList.add("opacity-100");
+
+                setTimeout(() => {
+                    startHorrorLineSequence();
+                }, 1800);
+            }, 600);
+        }
+
+        /* --- Line scene messaging with customized variables --- */
+        function startHorrorLineSequence() {
+            const container = document.getElementById("game-container");
+            container.classList.remove("glitch-effect", "theme-pastel");
+            container.classList.add("theme-dark");
+
+            document.getElementById("intro-scene").style.display = "none";
+            document.getElementById("game-header").style.display = "none";
+            document.querySelector("main").style.display = "none";
+            document.getElementById("action-buttons").style.display = "none";
+
+            const lineScene = document.getElementById("line-scene");
+            lineScene.classList.remove("hidden");
+            document.getElementById("line-chat-box").innerHTML = "";
+
+            const senderNameEl = document.getElementById("line-sender-name");
+            senderNameEl.innerText = "未知の相手";
+            senderNameEl.classList.remove("text-red-500", "font-bold");
+
+            const overlay = document.getElementById("overlay-screen");
+            overlay.classList.remove("opacity-100");
+            overlay.classList.add("opacity-0");
+
+            const foodName = gameState.favoriteFood || "すきなたべもの";
+            const addressName = gameState.playerAddress || "あなたのいえ";
+
+            const lineSequence = [
+                { text: "ねえ", delay: 1000 },
+                { text: "僕のご主人様", delay: 1000 },
+                { text: "好きだよ", delay: 1000 },
+                { text: "君の好きなものは何でも知ってる", delay: 1200 },
+                { text: `${foodName}が好きなんだよね`, delay: 1200 },
+                { text: "あはは", delay: 1000 },
+                { text: "ずっと見てるよ", delay: 1500 },
+                { text: `${addressName}に住んでるんだね`, delay: 1500 },
+                { text: "今向かってるから", delay: 3000, isFinal: true, revealStalker: true }
+            ];
+
+            let index = 0;
+
+            function processNextMessage() {
+                if (index < lineSequence.length) {
+                    const currentItem = lineSequence[index];
+                    
+                    setTimeout(() => {
+                        if (currentItem.revealStalker) {
+                            const senderNameEl = document.getElementById("line-sender-name");
+                            if (senderNameEl) {
+                                senderNameEl.innerText = "ストーカー";
+                                senderNameEl.classList.add("text-red-500", "font-bold");
+                            }
+                        }
+                        appendLineMessage(currentItem.text, currentItem.isFinal);
+                        index++;
+                        processNextMessage();
+                    }, currentItem.delay);
+                } else {
+                    setTimeout(() => {
+                        if (isEnding1Unlocked) {
+                            // 2週目：エンディング選択肢表示
+                            showEnding2Choices();
+                        } else {
+                            // 1週目：エンディング1へ
+                            finishEnding1();
+                        }
+                    }, 1500);
+                }
+            }
+
+            processNextMessage();
+        }
+
+        function showEnding2Choices() {
+            document.getElementById("line-dummy-input").classList.add("hidden");
+            const choices = document.getElementById("line-choice-buttons");
+            choices.classList.remove("hidden");
+            choices.classList.add("flex");
+        }
+
+        function chooseEnding2Option(isLove) {
+            document.getElementById("line-choice-buttons").classList.add("hidden");
+            document.getElementById("line-choice-buttons").classList.remove("flex");
+            document.getElementById("line-dummy-input").classList.remove("hidden");
+
+            if (isLove) {
+                // 「私も好きだよ」をプレイヤー側メッセージとして送信
+                appendUserLineMessage("私も好きだよ");
+                setTimeout(() => {
+                    startEnding2Sequence();
+                }, 800);
+            } else {
+                // 「やめて」：画面暗転してエンディング1へ
+                const overlay = document.getElementById("overlay-screen");
+                overlay.classList.remove("opacity-0");
+                overlay.classList.add("opacity-100");
+                setTimeout(() => {
+                    finishEnding1();
+                }, 1000);
+            }
+        }
+
+        function startEnding2Sequence() {
+            const e2Sequence1 = [
+                { text: "え", delay: 500 },
+                { text: "うそ", delay: 500 },
+                { text: "ほんと？", delay: 500 },
+                { text: "そっか、君は僕のことが好きなんだ！", delay: 500 },
+                { text: "両想いだ！", delay: 500 }
+            ];
+
+            let idx = 0;
+            function playSeq1() {
+                if (idx < e2Sequence1.length) {
+                    setTimeout(() => {
+                        appendLineMessage(e2Sequence1[idx].text);
+                        idx++;
+                        playSeq1();
+                    }, e2Sequence1[idx].delay);
+                } else {
+                    setTimeout(() => {
+                        playSeq2();
+                    }, 1000);
+                }
+            }
+
+            const e2Sequence2 = [
+                { text: "じゃあ", delay: 1000 },
+                { text: "ずっと僕の家で", delay: 1000 }
+            ];
+
+            let idx2 = 0;
+            function playSeq2() {
+                if (idx2 < e2Sequence2.length) {
+                    setTimeout(() => {
+                        appendLineMessage(e2Sequence2[idx2].text);
+                        idx2++;
+                        playSeq2();
+                    }, e2Sequence2[idx2].delay);
+                } else {
+                    // 4秒後に「ずっと監禁されてくれるよね？」
+                    setTimeout(() => {
+                        appendLineMessage("ずっと監禁されてくれるよね？");
+                        // 2秒後に「僕のうさぎさん♡」
+                        setTimeout(() => {
+                            appendLineMessage("僕のうさぎさん♡", true);
+                            setTimeout(() => {
+                                finishEnding2();
+                            }, 2000);
+                        }, 2000);
+                    }, 4000);
+                }
+            }
+
+            playSeq1();
+        }
+
+        function finishEnding1() {
+            isEnding1Unlocked = true;
+            finalBlackout("エンディング1「ストーカー」");
+        }
+
+        function finishEnding2() {
+            finalBlackout("エンディング2「僕のうさぎ」");
+        }
+
+        /* リアルなLINE風メッセージ追加関数 (相手) */
+        function appendLineMessage(text, isFinal = false) {
+            const chatBox = document.getElementById("line-chat-box");
+            
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "flex items-end gap-2 chat-bubble self-start max-w-[82%]";
+            
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            const textStyleClass = "bg-[#252d37] text-gray-100 text-sm px-3.5 py-2 rounded-2xl rounded-tl-none font-normal leading-relaxed shadow-sm border border-[#2e3744]";
+
+            msgDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0 flex items-center justify-center text-sm text-white shadow">
+                    🐰
+                </div>
+                <div class="flex flex-col">
+                    <div class="${textStyleClass}">
+                        ${text}
+                    </div>
+                </div>
+                <span class="text-[10px] text-gray-500 self-end pb-0.5 pl-1">${timeStr}</span>
+            `;
+
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        /* リアルなLINE風メッセージ追加関数 (自分) */
+        function appendUserLineMessage(text) {
+            const chatBox = document.getElementById("line-chat-box");
+            
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "flex items-end gap-2 chat-bubble self-end max-w-[82%]";
+            
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            msgDiv.innerHTML = `
+                <span class="text-[10px] text-gray-500 self-end pb-0.5 pr-1">${timeStr}</span>
+                <div class="bg-[#06c755] text-white text-sm px-3.5 py-2 rounded-2xl rounded-tr-none font-normal leading-relaxed shadow-sm">
+                    ${text}
+                </div>
+            `;
+
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function finalBlackout(endingTitle) {
+            const overlay = document.getElementById("overlay-screen");
+            const overlayText = document.getElementById("overlay-text");
+            const restartBtn = document.getElementById("restart-btn");
+            
+            overlay.classList.remove("opacity-0", "pointer-events-none");
+            overlay.classList.add("opacity-100");
+            
+            setTimeout(() => {
+                overlayText.classList.remove("hidden");
+                overlayText.innerHTML = `${endingTitle}<br><br><span class='text-xs text-gray-400 font-normal'>GAME OVER</span>`;
+                restartBtn.classList.remove("hidden");
+            }, 800);
+        }
+
+        function restartGame() {
+            gameState = {
+                day: 1,
+                favoriteFood: "",
+                playerName: "",
+                playerAddress: "",
+                knowsName: false,
+                questionStep: 0,
+                introStep: 0,
+                isSleepyReady: false,
+                nextTargetDay: 2
+            };
+
+            const overlay = document.getElementById("overlay-screen");
+            const overlayText = document.getElementById("overlay-text");
+            const restartBtn = document.getElementById("restart-btn");
+
+            overlayText.classList.add("hidden");
+            restartBtn.classList.add("hidden");
+            overlay.classList.remove("opacity-100");
+            overlay.classList.add("opacity-0", "pointer-events-none");
+
+            document.getElementById("line-scene").classList.add("hidden");
+            const container = document.getElementById("game-container");
+            container.classList.remove("theme-dark");
+            container.classList.add("theme-pastel");
+
+            document.getElementById("game-header").style.display = "flex";
+            document.querySelector("main").style.display = "flex";
+            document.getElementById("action-buttons").style.display = "grid";
+
+            document.getElementById("day-counter").innerText = "1にちめ";
+            document.getElementById("love-level").innerText = "★☆☆☆☆";
+            document.getElementById("speech-text").innerText = "つれてかえってくれて ありがとう！\nこれから よろしくね、ごしゅじんさま♪";
+            
+            setRabbitExpression("happy");
+            document.getElementById("cheeks").setAttribute("fill", "#f472b6");
+
+            const introScene = document.getElementById("intro-scene");
+            introScene.style.display = "flex";
+            introScene.classList.remove("opacity-0");
+            
+            const nameContainer = document.getElementById("name-input-container");
+            if (nameContainer) nameContainer.remove();
+
+            const nextBtn = document.getElementById("intro-next-btn");
+            if (nextBtn) nextBtn.style.display = "block";
+
+            document.getElementById("intro-dialogue").innerHTML = introDialogues[0];
+
+            hideActionButtons(false);
+        }
+    </script>
+</body>
+</html>
